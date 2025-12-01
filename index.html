@@ -1,0 +1,279 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>ISI Safe Ride - Sound Demo</title>
+
+    <!-- p5.js & p5.dom (no p5.sound needed now) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/addons/p5.dom.min.js"></script>
+
+    <!-- ml5 0.12.2 -->
+    <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js"></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #ff99cc, #b388ff);
+        color: #2b1239;
+      }
+
+      .card {
+        background: #ffffffee;
+        border-radius: 24px;
+        padding: 20px 24px 20px;
+        max-width: 980px;
+        width: 96%;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        text-align: center;
+      }
+
+      .title {
+        font-size: 34px;
+        font-weight: 900;
+        color: #b0006f;
+        margin-bottom: 4px;
+      }
+
+      .subtitle {
+        font-size: 18px;
+        color: #653e80;
+        margin-bottom: 10px;
+      }
+
+      #status {
+        font-size: 16px;
+        margin-bottom: 8px;
+        color: #7c4d8a;
+      }
+
+      #start-btn {
+        padding: 10px 24px;
+        border-radius: 999px;
+        border: none;
+        background: linear-gradient(135deg, #ff80ab, #ba68c8);
+        color: white;
+        font-size: 18px;
+        font-weight: 800;
+        cursor: pointer;
+        margin-bottom: 14px;
+        box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+      }
+
+      #start-btn:active {
+        transform: translateY(1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+      }
+
+      /* ===== main visual wrapper ===== */
+      #visualizer {
+        margin: 0 auto 12px;
+        border-radius: 20px;
+        border: 3px solid #f48fb1;
+        background: linear-gradient(#ffe6f4, #f3e5f5);
+        overflow: hidden;
+        width: 100%;
+      }
+
+      .visual-row {
+        position: relative;
+        width: 100%;
+      }
+
+      /* top: bus image panel */
+      #bus-panel {
+        padding: 8px 10px 4px;
+      }
+
+      #bus-panel-inner {
+        position: relative;
+        width: 100%;
+        max-height: 170px;          /* <<< shorter banner */
+        border-radius: 16px;
+        overflow: hidden;
+        border: 5px solid #43a047;  /* default safe color */
+      }
+
+      #bus-panel.safe {
+        --bus-border-color: #43a047;
+        --bus-chip-bg: #43a047;
+      }
+
+      #bus-panel.alert {
+        --bus-border-color: #e53935;
+        --bus-chip-bg: #e53935;
+      }
+
+      #bus-panel-inner {
+        border-color: var(--bus-border-color, #43a047);
+      }
+
+      #bus-img {
+        display: block;
+        width: 100%;
+        height: 170px;              /* <<< matches max-height */
+        object-fit: cover;
+      }
+
+      #bus-chip {
+        position: absolute;
+        left: 50%;
+        top: 8px;
+        transform: translateX(-50%);
+        padding: 6px 18px;
+        border-radius: 999px;
+        background: var(--bus-chip-bg, #43a047);
+        color: #fff;
+        font-weight: 800;
+        font-size: 18px;
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+      }
+
+      /* bottom: equalizer panel */
+      #eq-panel {
+        padding: 4px 10px 10px;
+      }
+
+      #eq-canvas-holder {
+        width: 100%;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+
+      .result {
+        margin-top: 2px;
+        margin-bottom: 6px;
+      }
+
+      .current-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 22px;
+        border-radius: 999px;
+        background: #fce4ec;
+        border: 2px solid #f06292;
+        font-weight: 900;
+        color: #ad1457;
+        font-size: 24px;
+      }
+
+      #emoji {
+        font-size: 40px;
+      }
+
+      .confidence {
+        font-size: 16px;
+        margin-top: 4px;
+        color: #5e366e;
+      }
+
+      .hint {
+        font-size: 14px;
+        margin-top: 8px;
+        color: #6a3a7a;
+      }
+
+      .hint span {
+        font-weight: 700;
+      }
+
+      .footer-note {
+        margin-top: 6px;
+        font-size: 12px;
+        color: #9c6db6;
+      }
+
+      @media (max-height: 800px) {
+        .title {
+          font-size: 30px;
+        }
+        .subtitle {
+          font-size: 16px;
+        }
+        #bus-panel-inner {
+          max-height: 150px;
+        }
+        #bus-img {
+          height: 150px;
+        }
+      }
+
+      @media (max-width: 800px) {
+        .card {
+          padding: 16px 14px;
+        }
+        .title {
+          font-size: 28px;
+        }
+        .subtitle {
+          font-size: 16px;
+        }
+        .current-label {
+          font-size: 20px;
+        }
+        #emoji {
+          font-size: 32px;
+        }
+      }
+    </style>
+
+  </head>
+
+  <body>
+    <div class="card">
+      <div class="title">ISI Safe Ride – Sound Demo</div>
+      <div class="subtitle">Our AI is listening for bus sounds 🎧🚌</div>
+
+      <p id="status">Click “Start Demo” and allow microphone access.</p>
+      <button id="start-btn">▶ Start Demo</button>
+
+      <!-- BIG RECTANGLE -->
+      <div id="visualizer">
+        <!-- TOP: BUS IMAGE -->
+        <div id="bus-panel" class="visual-row safe">
+          <div id="bus-panel-inner">
+            <img id="bus-img" src="bus.jpg" alt="ISI Safe Ride Bus" />
+            <div id="bus-chip">SAFE RIDE</div>
+          </div>
+        </div>
+
+        <!-- BOTTOM: EQUALIZER CANVAS -->
+        <div id="eq-panel" class="visual-row">
+          <div id="eq-canvas-holder"></div>
+        </div>
+      </div>
+
+      <div class="result">
+        <div class="current-label">
+          <span id="emoji">🎧</span>
+          <span id="label-text">Waiting…</span>
+        </div>
+        <div class="confidence">
+          Confidence: <span id="confidence">–</span>
+        </div>
+      </div>
+
+      <p class="hint">
+        Try: <span>👏 clap</span> • <span>😱 scream</span> • <span>👊 knock</span> •
+        <span>😗 whistle</span>
+      </p>
+
+      <div class="footer-note">
+        Bus turns green when safe, red when there’s a problem!
+      </div>
+    </div>
+
+    <script src="sketch.js"></script>
+  </body>
+</html>
